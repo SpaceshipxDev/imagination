@@ -1,12 +1,14 @@
+'use client';
+
 import { useState } from 'react';
 import { Search, Filter, ChevronDown, ChevronRight, FolderOpen, Clock, CheckCircle, AlertCircle, User, Calendar, Play, Flag, Users, Square, CheckSquare } from 'lucide-react';
-import { Input } from './components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
-import { Badge } from './components/ui/badge';
-import { Progress } from './components/ui/progress';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
-import { Button } from './components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Order {
   id: string;
@@ -667,7 +669,7 @@ function DepartmentFlow({ departments, mfgId }: { departments: Department[], mfg
                   Active
                 </span>
               </div>
-              <p className="text-blue-800 text-xs mb-2">"{currentDept.note}"</p>
+              <p className="text-blue-800 text-xs mb-2">&quot;{currentDept.note}&quot;</p>
               <div className="flex items-center gap-3 text-xs text-blue-600">
                 {currentDept.employee && (
                   <span>{currentDept.employee}</span>
