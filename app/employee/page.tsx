@@ -1,5 +1,5 @@
-import EmployeeDashboard from '@/components/employee-dashboard';
+import Dashboard from '@/components/dashboard';
 
 export default function EmployeePage() {
-  return <EmployeeDashboard />;
+  return <Dashboard initialTab="employee" singleView />;
 }

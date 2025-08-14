@@ -1,5 +1,5 @@
-import ManagerDashboard from '@/components/manager-dashboard';
+import Dashboard from '@/components/dashboard';
 
 export default function Home() {
-  return <ManagerDashboard />;
+  return <Dashboard />;
 }

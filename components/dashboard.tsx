@@ -1,25 +1,107 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Filter, ChevronDown, ChevronRight, FolderOpen, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Search, Filter, ChevronDown, ChevronRight, FolderOpen, Clock, CheckCircle, AlertCircle, User, Calendar, Play, Flag, Users, Square, CheckSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Order, Department, DEPARTMENTS } from '@/lib/types';
+
+interface Order {
+  id: string;
+  customer: string;
+  rep: string;
+  dueDate: string;
+  mfgId: string;
+  progress: number;
+  currentDept: string;
+  status: 'LATE' | 'RISK' | 'OK';
+  departments: Department[];
+}
+
+interface Department {
+  name: string;
+  completed: boolean;
+  inProgress: boolean;
+  hoursLate?: number;
+  note?: string;
+  employee?: string;
+  startTime?: string;
+  completedTime?: string;
+  estimatedHours?: number;
+  actualHours?: number;
+  priority?: 'high' | 'medium' | 'low';
+}
+
+interface EmployeeTask {
+  orderId: string;
+  mfgId: string;
+  customer: string;
+  dueDate: string;
+  department: string;
+  priority: 'high' | 'medium' | 'low';
+  estimatedHours: number;
+  status: 'pending' | 'in-progress' | 'completed' | 'flagged';
+  assignedEmployee?: string;
+  note?: string;
+}
+const DEPARTMENTS = ['报价', '生产审批', '编程', '操机', '手工', '表面处理', '检验', '出货'];
+
+// Generate employee tasks from orders
+const generateEmployeeTasks = (orders: Order[], selectedDept: string): EmployeeTask[] => {
+  const tasks: EmployeeTask[] = [];
+  
+  orders.forEach(order => {
+    const currentDeptIndex = order.departments.findIndex(d => d.name === selectedDept);
+    if (currentDeptIndex === -1) return;
+    
+    const dept = order.departments[currentDeptIndex];
+    const prevDept = currentDeptIndex > 0 ? order.departments[currentDeptIndex - 1] : null;
+    
+    // Show task if: current department is in progress, or previous department is completed and current is not started
+    if (dept.inProgress || (prevDept?.completed && !dept.completed && !dept.inProgress)) {
+      tasks.push({
+        orderId: order.id,
+        mfgId: order.mfgId,
+        customer: order.customer,
+        dueDate: order.dueDate,
+        department: selectedDept,
+        priority: dept.priority || 'medium',
+        estimatedHours: dept.estimatedHours || 0,
+        status: dept.inProgress ? 'in-progress' : 'pending',
+        assignedEmployee: dept.employee,
+        note: dept.note
+      });
+    }
+  });
+  
+  return tasks.sort((a, b) => {
+    // Sort by: in-progress first, then by priority, then by due date
+    if (a.status === 'in-progress' && b.status !== 'in-progress') return -1;
+    if (b.status === 'in-progress' && a.status !== 'in-progress') return 1;
+    
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    }
+    
+    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+  });
+};
 
 function StatusBadge({ status }: { status: Order['status'] }) {
   const variants = {
     LATE: { color: 'bg-red-500', text: 'text-white', label: 'LATE' },
     RISK: { color: 'bg-yellow-500', text: 'text-white', label: 'RISK' },
     OK: { color: 'bg-green-500', text: 'text-white', label: 'OK' }
-  } as const;
-
+  };
+  
   const variant = variants[status];
-
+  
   return (
     <Badge className={`${variant.color} ${variant.text} hover:opacity-90 text-xs`}>
       {status === 'LATE' && '🔴'} {status === 'RISK' && '🟡'} {status === 'OK' && '🟢'} {variant.label}
@@ -29,14 +111,206 @@ function StatusBadge({ status }: { status: Order['status'] }) {
 
 function PriorityDot({ priority }: { priority?: 'high' | 'medium' | 'low' }) {
   if (!priority) return null;
-
+  
   const colors = {
     high: 'bg-red-400',
     medium: 'bg-yellow-400',
     low: 'bg-green-400'
-  } as const;
-
+  };
+  
   return <div className={`w-1.5 h-1.5 rounded-full ${colors[priority]} opacity-60`} />;
+}
+
+function SimpleTaskRow({ 
+  task, 
+  onStart,
+  onComplete,
+  onFlag
+}: {
+  task: EmployeeTask;
+  onStart: () => void;
+  onComplete: () => void;
+  onFlag: () => void;
+}) {
+  const isToday = task.dueDate === '12/25';
+  const isDueTomorrow = task.dueDate === '12/26';
+  
+  const getDueDateDisplay = () => {
+    if (isToday) return 'Due today';
+    if (isDueTomorrow) return 'Due tomorrow';
+    return `Due ${task.dueDate}`;
+  };
+  
+  const getDueDateColor = () => {
+    if (isToday) return 'text-red-600';
+    if (isDueTomorrow) return 'text-orange-600';
+    return 'text-gray-500';
+  };
+  
+  return (
+    <div className="flex items-center gap-4 py-3 px-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50/50 transition-colors">
+      {/* Checkbox */}
+      <div className="flex items-center">
+        {task.status === 'completed' ? (
+          <CheckSquare className="w-5 h-5 text-green-600" />
+        ) : (
+          <Square className="w-5 h-5 text-gray-400" />
+        )}
+      </div>
+      
+      {/* Task Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-sm bg-gray-100 px-2 py-0.5 rounded">
+            {task.mfgId}
+          </span>
+          <span className="text-sm text-gray-700 truncate">
+            {task.customer}
+          </span>
+          <span className={`text-sm ${getDueDateColor()}`}>
+            {getDueDateDisplay()}
+          </span>
+          {task.note && (
+            <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
+              Issue
+            </span>
+          )}
+        </div>
+      </div>
+      
+      {/* Actions */}
+      <div className="flex items-center gap-2">
+        {task.status === 'pending' && (
+          <Button
+            size="sm"
+            onClick={onStart}
+            className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700"
+          >
+            Start
+          </Button>
+        )}
+
+        {task.status === 'in-progress' && (
+          <Button
+            size="sm"
+            onClick={onComplete}
+            className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700"
+          >
+            Complete
+          </Button>
+        )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onFlag}
+          className="h-8 px-3 text-xs border-gray-300 hover:bg-gray-50"
+        >
+          <Flag className="w-3 h-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function EmployeeInterface({ orders, refresh }: { orders: Order[]; refresh: () => void }) {
+  const [selectedDept, setSelectedDept] = useState('编程');
+  const [searchTerm, setSearchTerm] = useState('');
+  const departments = DEPARTMENTS;
+
+  const tasks = generateEmployeeTasks(orders, selectedDept);
+
+  const filteredTasks = tasks.filter(task =>
+    task.mfgId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    task.customer.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleStart = async (orderId: string, dept: string) => {
+    await fetch(`/api/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ department: dept, action: 'start' })
+    });
+    refresh();
+  };
+
+  const handleComplete = async (orderId: string, dept: string) => {
+    await fetch(`/api/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ department: dept, action: 'complete' })
+    });
+    refresh();
+  };
+
+  const handleFlag = async (orderId: string, dept: string) => {
+    const note = prompt('Issue note?') || '';
+    await fetch(`/api/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ department: dept, action: 'flag', note })
+    });
+    refresh();
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto px-6 py-6">
+      {/* Controls */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600 whitespace-nowrap">Select your department:</span>
+          <Select value={selectedDept} onValueChange={setSelectedDept}>
+            <SelectTrigger className="w-36 bg-gray-50 border-gray-200 h-9 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {departments.map(dept => (
+                <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="relative flex-1 max-w-xs">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Input
+            placeholder="Search MFG ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 bg-gray-50 border-gray-200 focus:bg-white text-sm h-9"
+          />
+        </div>
+      </div>
+      
+      {/* Queue Header */}
+      <div className="mb-4">
+        <h3 className="text-base font-medium text-gray-900">Your Queue:</h3>
+      </div>
+      
+      {/* Task List */}
+      <div className="space-y-2">
+        {filteredTasks.map(task => (
+          <SimpleTaskRow
+            key={`${task.mfgId}-${task.department}`}
+            task={task}
+            onStart={() => handleStart(task.orderId, task.department)}
+            onComplete={() => handleComplete(task.orderId, task.department)}
+            onFlag={() => handleFlag(task.orderId, task.department)}
+          />
+        ))}
+        
+        {filteredTasks.length === 0 && (
+          <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="text-gray-400 mb-2">
+              <CheckCircle className="w-8 h-8 mx-auto" />
+            </div>
+            <p className="text-gray-500 text-sm">No tasks in your queue</p>
+            <p className="text-gray-400 text-xs mt-1">All caught up!</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function DepartmentChip({ dept, index, isLast }: { dept: Department, index: number, isLast: boolean }) {
@@ -48,7 +322,7 @@ function DepartmentChip({ dept, index, isLast }: { dept: Department, index: numb
 
   const getTimeDisplay = () => {
     if (dept.completed && dept.completedTime) {
-      return dept.completedTime.split(' ')[1];
+      return dept.completedTime.split(' ')[1]; // Just show time
     }
     if (dept.inProgress && dept.startTime) {
       return `Started ${dept.startTime.split(' ')[1]}`;
@@ -80,7 +354,7 @@ function DepartmentChip({ dept, index, isLast }: { dept: Department, index: numb
                   {dept.hoursLate && <AlertCircle className="w-3 h-3 text-red-500" />}
                   <PriorityDot priority={dept.priority} />
                 </div>
-
+                
                 <div className="flex flex-col items-start min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-medium truncate">{dept.name}</span>
@@ -90,7 +364,7 @@ function DepartmentChip({ dept, index, isLast }: { dept: Department, index: numb
                       </span>
                     )}
                   </div>
-
+                  
                   {(dept.employee || getTimeDisplay()) && (
                     <div className="flex items-center gap-1 text-xs opacity-60 mt-0.5">
                       {dept.employee && (
@@ -148,7 +422,7 @@ function DepartmentChip({ dept, index, isLast }: { dept: Department, index: numb
             </div>
           </TooltipContent>
         </Tooltip>
-
+        
         {!isLast && (
           <ChevronRight className="w-3 h-3 text-gray-300 mx-1.5 flex-shrink-0" />
         )}
@@ -159,7 +433,7 @@ function DepartmentChip({ dept, index, isLast }: { dept: Department, index: numb
 
 function DepartmentFlow({ departments, mfgId }: { departments: Department[], mfgId: string }) {
   const currentDept = departments.find(d => d.inProgress);
-
+  
   return (
     <div className="px-6 py-4 bg-gray-50/40 border-t border-gray-100">
       <div className="flex items-center justify-between mb-4">
@@ -168,7 +442,7 @@ function DepartmentFlow({ departments, mfgId }: { departments: Department[], mfg
           <FolderOpen className="w-3.5 h-3.5 text-blue-500" />
           <span className="text-xs text-blue-600 cursor-pointer hover:underline">Files</span>
         </div>
-
+        
         {currentDept && (
           <div className="text-xs text-gray-500">
             Current: <span className="font-medium text-blue-600">{currentDept.name}</span>
@@ -178,18 +452,18 @@ function DepartmentFlow({ departments, mfgId }: { departments: Department[], mfg
           </div>
         )}
       </div>
-
+      
       <div className="flex items-start gap-1.5 flex-wrap mb-4">
         {departments.map((dept, index) => (
-          <DepartmentChip
-            key={dept.name}
-            dept={dept}
+          <DepartmentChip 
+            key={dept.name} 
+            dept={dept} 
             index={index}
             isLast={index === departments.length - 1}
           />
         ))}
       </div>
-
+      
       {currentDept?.note && (
         <div className="bg-blue-50/50 p-3 rounded-lg border border-blue-100">
           <div className="flex items-start gap-2.5">
@@ -225,17 +499,17 @@ function DepartmentFlow({ departments, mfgId }: { departments: Department[], mfg
 
 function OrderRow({ order }: { order: Order }) {
   const [expanded, setExpanded] = useState(false);
-
+  
   return (
     <>
-      <tr
+      <tr 
         className="hover:bg-gray-50/50 transition-colors cursor-pointer border-b border-gray-100"
         onClick={() => setExpanded(!expanded)}
       >
         <td className="py-3 px-6 text-left">
           <div className="flex items-center gap-2">
-            {expanded ?
-              <ChevronDown className="w-4 h-4 text-gray-400" /> :
+            {expanded ? 
+              <ChevronDown className="w-4 h-4 text-gray-400" /> : 
               <ChevronRight className="w-4 h-4 text-gray-400" />
             }
             <span className="font-medium text-gray-900 text-sm">{order.customer}</span>
@@ -383,7 +657,7 @@ function ManagerInterface({ orders, refresh }: { orders: Order[]; refresh: () =>
             ))}
           </tbody>
         </table>
-
+        
         {filteredOrders.length === 0 && (
           <div className="text-center py-12">
             <div className="text-gray-400 mb-2">
@@ -397,7 +671,7 @@ function ManagerInterface({ orders, refresh }: { orders: Order[]; refresh: () =>
   );
 }
 
-export default function ManagerDashboard() {
+export default function Dashboard({ initialTab = 'manager', singleView = false }: { initialTab?: 'manager' | 'employee'; singleView?: boolean }) {
   const [orders, setOrders] = useState<Order[]>([]);
 
   const fetchOrders = async () => {
@@ -412,6 +686,7 @@ export default function ManagerDashboard() {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Header */}
       <div className="border-b border-gray-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -423,8 +698,37 @@ export default function ManagerDashboard() {
         </div>
       </div>
 
-      <ManagerInterface orders={orders} refresh={fetchOrders} />
+      {/* Main Content */}
+      {singleView ? (
+        initialTab === 'manager' ? (
+          <ManagerInterface orders={orders} refresh={fetchOrders} />
+        ) : (
+          <EmployeeInterface orders={orders} refresh={fetchOrders} />
+        )
+      ) : (
+        <Tabs defaultValue={initialTab} className="w-full">
+          <div className="max-w-7xl mx-auto px-6">
+            <TabsList className="grid w-48 grid-cols-2 mt-4">
+              <TabsTrigger value="manager" className="text-sm">
+                <Users className="w-4 h-4 mr-1.5" />
+                Manager
+              </TabsTrigger>
+              <TabsTrigger value="employee" className="text-sm">
+                <User className="w-4 h-4 mr-1.5" />
+                Employee
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="manager" className="mt-0">
+            <ManagerInterface orders={orders} refresh={fetchOrders} />
+          </TabsContent>
+
+          <TabsContent value="employee" className="mt-0">
+            <EmployeeInterface orders={orders} refresh={fetchOrders} />
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 }
-
