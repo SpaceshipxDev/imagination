@@ -1,5 +1,6 @@
-import ManagerDashboard from '@/components/manager-dashboard';
+import { redirect } from 'next/navigation';
 
 export default function Home() {
-  return <ManagerDashboard />;
+  redirect('/manager');
 }
+
