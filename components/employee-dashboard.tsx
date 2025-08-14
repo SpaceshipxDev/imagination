@@ -18,8 +18,12 @@ const generateEmployeeTasks = (orders: Order[], selectedDept: string): EmployeeT
     const dept = order.departments[currentDeptIndex];
     const prevDept = currentDeptIndex > 0 ? order.departments[currentDeptIndex - 1] : null;
 
-    // Show task if: current department is in progress, or previous department is completed and current is not started
-    if (dept.inProgress || (prevDept?.completed && !dept.completed && !dept.inProgress)) {
+    // Show task if: current department is in progress, or ready to be started.
+    // Ready means previous department is completed (or doesn't exist for first dept),
+    // current department isn't completed and hasn't started yet.
+    const canStart = !dept.completed && !dept.inProgress && (!prevDept || prevDept.completed);
+
+    if (dept.inProgress || canStart) {
       tasks.push({
         orderId: order.id,
         mfgId: order.mfgId,
