@@ -1,0 +1,42 @@
+[
+  {
+    "id": "1",
+    "customer": "张三公司",
+    "rep": "李工程师",
+    "dueDate": "2024-12-25",
+    "mfgId": "M-2847",
+    "progress": 50,
+    "currentDept": "编程",
+    "status": "LATE",
+    "departments": [
+      {"name": "报价", "completed": true, "inProgress": false},
+      {"name": "生产审批", "completed": true, "inProgress": false},
+      {"name": "编程", "completed": false, "inProgress": true},
+      {"name": "操机", "completed": false, "inProgress": false},
+      {"name": "手工", "completed": false, "inProgress": false},
+      {"name": "表面处理", "completed": false, "inProgress": false},
+      {"name": "检验", "completed": false, "inProgress": false},
+      {"name": "出货", "completed": false, "inProgress": false}
+    ]
+  },
+  {
+    "id": "2",
+    "customer": "Tech Corp",
+    "rep": "John",
+    "dueDate": "2024-12-26",
+    "mfgId": "M-2848",
+    "progress": 75,
+    "currentDept": "检验",
+    "status": "RISK",
+    "departments": [
+      {"name": "报价", "completed": true, "inProgress": false},
+      {"name": "生产审批", "completed": true, "inProgress": false},
+      {"name": "编程", "completed": true, "inProgress": false},
+      {"name": "操机", "completed": true, "inProgress": false},
+      {"name": "手工", "completed": true, "inProgress": false},
+      {"name": "表面处理", "completed": true, "inProgress": false},
+      {"name": "检验", "completed": false, "inProgress": true},
+      {"name": "出货", "completed": false, "inProgress": false}
+    ]
+  }
+]
