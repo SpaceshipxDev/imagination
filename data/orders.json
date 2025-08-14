@@ -1,0 +1,22 @@
+[
+  {
+    "id": "1",
+    "customer": "ACME Corp",
+    "rep": "John",
+    "dueDate": "2024-12-25",
+    "mfgId": "M-1001",
+    "progress": 0,
+    "currentDept": "报价",
+    "status": "OK",
+    "departments": [
+      {"name": "报价", "completed": false, "inProgress": false, "priority": "high"},
+      {"name": "生产审批", "completed": false, "inProgress": false, "priority": "medium"},
+      {"name": "编程", "completed": false, "inProgress": false, "priority": "high"},
+      {"name": "操机", "completed": false, "inProgress": false, "priority": "medium"},
+      {"name": "手工", "completed": false, "inProgress": false, "priority": "low"},
+      {"name": "表面处理", "completed": false, "inProgress": false, "priority": "medium"},
+      {"name": "检验", "completed": false, "inProgress": false, "priority": "high"},
+      {"name": "出货", "completed": false, "inProgress": false, "priority": "low"}
+    ]
+  }
+]
